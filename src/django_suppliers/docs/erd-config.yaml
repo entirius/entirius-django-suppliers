@@ -1,0 +1,11 @@
+app_label: django_suppliers
+groups:
+  - name: core
+    title: "Core"
+    models:
+      - Supplier
+      - SupplierSettings
+  - name: integration-log
+    title: "Integration Log"
+    models:
+      - IntegrationEvent

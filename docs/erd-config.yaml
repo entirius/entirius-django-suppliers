@@ -1,0 +1,27 @@
+# ERD configuration for django-suppliers — consumed by `make erd APP=django_suppliers`.
+# Output: D2 source committed to docs/erd/, rendered PNGs deployed alongside entirius-docs.
+app_label: django_suppliers
+groups:
+  - name: core-registry
+    title: "Core Registry"
+    models:
+      - Supplier
+      - SupplierSettings
+      - ProductSupplierLink
+  - name: feeds-and-import
+    title: "Feeds and Import"
+    models:
+      - SupplierFeed
+      - SupplierProduct
+      - ImportLog
+  - name: mapping
+    title: "Mapping"
+    models:
+      - SupplierMappingProfile
+      - SupplierAttributeMapping
+      - SupplierCategoryMapping
+  - name: monitoring
+    title: "Monitoring"
+    models:
+      - IntegrationEvent
+      - SupplierProductChangeLog
