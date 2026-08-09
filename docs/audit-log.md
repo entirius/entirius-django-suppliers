@@ -1,4 +1,7 @@
-# Audit log — per-field SupplierProduct change tracking
+---
+title: Audit Log
+description: Per-field SupplierProduct change tracking.
+---
 
 `SupplierProductChangeLog` is a per-field audit trail for every mutation that
 touches a `SupplierProduct` after it has been pushed to PIM. It answers the
