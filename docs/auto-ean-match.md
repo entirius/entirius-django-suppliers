@@ -1,4 +1,7 @@
-# Auto EAN-match
+---
+title: Auto EAN Match
+description: Automatic supplier-product to PIM-product matching by EAN.
+---
 
 When a supplier feed delivers a `SupplierProduct` whose EAN matches an existing
 `RealProduct` in PIM, the push pipeline now attaches the SP to that existing
