@@ -20,6 +20,7 @@ _TAGS = ["Supplier Connectors"]
 class ConnectorListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "suppliers.sources"
 
     @extend_schema(tags=_TAGS, summary="List discovered connectors", responses={200: ConnectorListResponse})
     def get(self, request: Request) -> Response:

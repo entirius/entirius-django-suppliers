@@ -43,6 +43,7 @@ _TAGS = ["Suppliers"]
 class SupplierViewSet(viewsets.ViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "suppliers.sources"
     pagination_class = AdminPageNumberPagination
     serializer_class = None
     lookup_field = "idx"
@@ -290,6 +291,7 @@ class SupplierCredentialsView(viewsets.ViewSet):
 
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsSuperUser]
+    access_area = "suppliers.credentials"
     serializer_class = None
 
     @extend_schema(

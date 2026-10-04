@@ -27,6 +27,7 @@ _TAGS = ["Supplier Push"]
 class BulkPushView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "suppliers.products"
 
     @extend_schema(
         tags=_TAGS,
