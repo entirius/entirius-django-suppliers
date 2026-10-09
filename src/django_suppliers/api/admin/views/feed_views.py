@@ -46,6 +46,7 @@ _TAGS = ["Supplier Feeds"]
 class SupplierFeedViewSet(viewsets.ViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "suppliers.sources"
     pagination_class = AdminPageNumberPagination
     serializer_class = None
 
