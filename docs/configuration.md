@@ -54,9 +54,12 @@ Worker MUST listen on these three queues (or routing rules direct tasks correctl
 
 | Queue | Tasks | Notes |
 |---|---|---|
-| `supplier_default` | `execute_feed_task`, `push_approved_for_supplier_task`, `prune_supplier_events_task` | General work |
+| `supplier_default` | `execute_feed_task`, `push_approved_for_supplier_task`, `prune_supplier_events_task`, `prune_supplier_change_logs_task`, `evaluate_preferred_suppliers_task` | General work |
 | `supplier_images` | `download_supplier_images_task` | Separate queue avoids head-of-line blocking by image download (slow IO) |
 | `supplier_results` | `process_scraper_results_task` | Callback from `scraper-workers` (external repo) |
+
+`evaluate_preferred_suppliers_task` is the auto-preferred batch evaluator — register it on celery beat. Falls back to
+`python manage.py evaluate_preferred_suppliers` when beat is down or the operator wants synchronous output.
 
 Beat schedule (recommended in service):
 
