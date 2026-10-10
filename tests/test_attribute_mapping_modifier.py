@@ -17,7 +17,7 @@ pytestmark = pytest.mark.django_db
 
 
 def test_grams_to_kg_writes_transformed_weight_and_audit_row(pim_channel_factory):
-    """The motivating Scenario 6c — Kinghoff ships weight_g=7800, push stores RealProduct.weight=7.8."""
+    """The motivating Scenario 6c — a supplier ships weight_g=7800, push stores RealProduct.weight=7.8."""
     from django_pim.models.real_product import RealProduct
 
     rp = RealProduct.objects.create(sku="sku-rp-modifier")

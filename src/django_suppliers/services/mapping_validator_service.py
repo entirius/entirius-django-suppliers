@@ -34,7 +34,7 @@ from django_suppliers.services import data_inspector_service
 
 _TYPE_COMPAT_FAIL_PCT = 50  # >this many percent failed parses → warning
 _TYPE_COMPAT_SAMPLE = 10  # how many SP values to sample for the parse check
-_VALUES_LOOKUP_LIMIT = 10000  # enough headroom for known supplier scales (Fortrade ~3859 SPs)
+_VALUES_LOOKUP_LIMIT = 10000  # enough headroom for known supplier scales (~3859 SPs)
 _BOOL_TRUE = frozenset({"true", "1", "yes", "y", "t", "on"})
 _BOOL_FALSE = frozenset({"false", "0", "no", "n", "f", "off"})
 

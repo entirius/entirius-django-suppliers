@@ -46,7 +46,7 @@ Use case: ops monitoring, ack flow, drill-down on warnings.
 
 ### Updated Mode (etap-07)
 
-Cross-supplier "what changed since last push" view. Lists SPs in `pushed` / `pushed_pending_images` status where `data_changed_at > pushed_at`. Sidebar shows per-supplier counts (`All N | Kinghoff N | Fortrade N`); main grid shows each row with the same `BulkActionBar` as ProductsTab (force-repush per-SP, acknowledge per-SKU). Backend: `GET /products/?status=pushed&ordering=-data_changed_at&page_size=100` + client-side `isRowUpdated()` filter — no dedicated endpoint, just the standard `products/` list with denormalised `real_product_sku` / `supplier_idx` / `supplier_name`.
+Cross-supplier "what changed since last push" view. Lists SPs in `pushed` / `pushed_pending_images` status where `data_changed_at > pushed_at`. Sidebar shows per-supplier counts (`All N | Globex N | Acme N`); main grid shows each row with the same `BulkActionBar` as ProductsTab (force-repush per-SP, acknowledge per-SKU). Backend: `GET /products/?status=pushed&ordering=-data_changed_at&page_size=100` + client-side `isRowUpdated()` filter — no dedicated endpoint, just the standard `products/` list with denormalised `real_product_sku` / `supplier_idx` / `supplier_name`.
 Use case: operator triage of "supplier touched this PIM SKU after we curated it" without per-SKU SQL.
 
 ## Bulk Actions
