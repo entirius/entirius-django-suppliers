@@ -9,7 +9,7 @@ URL prefix: `/api/suppliers/v2/admin/`. Auth: `JWTAuthentication` + `IsAdminUser
 | Resource | Path |
 |---|---|
 | Suppliers | `suppliers/` (GET/POST), `suppliers/{idx}/` (GET/PATCH/DELETE), `suppliers/{idx}/delete-impact/`, `suppliers/{idx}/data-keys/` (flattened `SupplierProduct.data` keys + reserved tokens; cached 5 min, invalidated by `execute_feed_task`), `suppliers/{idx}/data-values/?source_field=X&limit=N`, `suppliers/{idx}/credentials/` (audited) |
-| Feeds | `suppliers/{idx}/feeds/...` (CRUD + `/trigger/` + `/test/`) |
+| Feeds | `suppliers/{idx}/feeds/...` (CRUD + `/trigger/` + `/test/`); `/test/` fetches the feed with the stored credentials, so it needs the write level of `suppliers.sources`, and its `limit` is 1 to 10 (default 10, 400 outside) |
 | Mapping profiles | `suppliers/{idx}/mapping-profiles/...` (CRUD + `/validate/` — returns `warnings: list[MappingWarning]` with structured codes; `mapping_id` present for category/attribute warnings) |
 | Attribute mappings | `mapping-profiles/{pk}/attribute-mappings/...` (CRUD — per-row `modifier`; see `docs/mapping-modifiers.md`) |
 | Category mappings | `mapping-profiles/{pk}/category-mappings/...` (CRUD) |
