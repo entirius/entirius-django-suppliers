@@ -133,6 +133,25 @@ class TestFeedTestSample:
         assert resp.status_code == 200
         assert resp.data["status"] == "suppressed"
 
+    def test_limit_reaches_the_service_up_to_the_cap(self, monkeypatch, admin_client, supplier, feed):
+        from django_suppliers.api.admin.views import feed_views as views_module
+
+        seen = {}
+        monkeypatch.setattr(views_module.feed_service, "test_feed", lambda *a, **kw: seen.update(kw) or [])
+        resp = admin_client.post(f"{self.url(supplier, feed)}?limit=10", format="json")
+        assert resp.status_code == 200
+        assert seen == {"limit": 10}
+
+    @pytest.mark.parametrize("limit", ["11", "100000", "0", "-1", "abc"])
+    def test_limit_outside_the_cap_is_refused(self, monkeypatch, admin_client, supplier, feed, limit):
+        from django_suppliers.api.admin.views import feed_views as views_module
+
+        called = []
+        monkeypatch.setattr(views_module.feed_service, "test_feed", lambda *a, **kw: called.append(kw) or [])
+        resp = admin_client.post(f"{self.url(supplier, feed)}?limit={limit}", format="json")
+        assert resp.status_code == 400
+        assert called == []
+
 
 # -----------------------------------------------------------------------------
 # Mapping validate (2 tests)

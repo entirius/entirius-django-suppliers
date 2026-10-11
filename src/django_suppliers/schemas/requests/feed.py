@@ -40,3 +40,10 @@ class SupplierFeedUpdateRequest(BaseModel):
 
 class FeedTriggerRequest(BaseModel):
     mode: SyncModeLiteral = Field("full", description="Sync mode for this run", examples=["full"])
+
+
+FEED_TEST_MAX_LIMIT = 10
+
+
+class FeedTestRequest(BaseModel):
+    limit: int = Field(FEED_TEST_MAX_LIMIT, description="Sample size", examples=[3], ge=1, le=FEED_TEST_MAX_LIMIT)
