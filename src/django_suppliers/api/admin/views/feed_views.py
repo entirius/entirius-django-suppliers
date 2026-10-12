@@ -20,6 +20,8 @@ from django_suppliers.api.admin.pagination import AdminPageNumberPagination
 from django_suppliers.api.admin.permissions import IsAdminUser
 from django_suppliers.api.admin.views._helpers import raise_as_drf
 from django_suppliers.schemas.requests.feed import (
+    FEED_TEST_MAX_LIMIT,
+    FeedTestRequest,
     FeedTriggerRequest,
     SupplierFeedCreateRequest,
     SupplierFeedUpdateRequest,
@@ -46,6 +48,9 @@ _TAGS = ["Supplier Feeds"]
 class SupplierFeedViewSet(viewsets.ViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "suppliers.sources"
+    # The feed test fetches the supplier feed with the stored credentials: POST stays a write, never a POST-read.
+    access_levels = {"POST": "write"}
     pagination_class = AdminPageNumberPagination
     serializer_class = None
 
@@ -142,18 +147,22 @@ class SupplierFeedViewSet(viewsets.ViewSet):
         description="Sync connectors return raw products list; async connectors return dispatch info.",
         parameters=[
             OpenApiParameter(
-                "limit", int, OpenApiParameter.QUERY, required=False, description="Sample size (default 10)"
+                "limit",
+                int,
+                OpenApiParameter.QUERY,
+                required=False,
+                description=f"Sample size, 1 to {FEED_TEST_MAX_LIMIT} (default {FEED_TEST_MAX_LIMIT})",
             )
         ],
         responses={200: FeedTestResponse, 404: None, 400: None},
     )
     def test_feed(self, request: Request, supplier_idx: str, idx: str) -> Response:
         try:
-            limit = int(request.query_params.get("limit", "10"))
-        except ValueError as exc:
-            raise drf_exceptions.ValidationError(str(exc) or "limit must be int") from exc
+            data = FeedTestRequest(**request.query_params.dict())
+        except ValidationError as exc:
+            raise_pydantic_as_drf(exc)
         try:
-            result = feed_service.test_feed(supplier_idx, idx, limit=limit)
+            result = feed_service.test_feed(supplier_idx, idx, limit=data.limit)
         except ValueError as exc:
             raise drf_exceptions.NotFound(str(exc) or "Feed not found") from exc
         if isinstance(result, list):

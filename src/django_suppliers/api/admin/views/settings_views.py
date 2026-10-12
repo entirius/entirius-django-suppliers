@@ -33,6 +33,7 @@ _TAGS = ["Supplier Settings"]
 class SupplierSettingsView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "suppliers.sources"
 
     @extend_schema(
         tags=_TAGS, summary="Retrieve supplier settings (singleton)", responses={200: SupplierSettingsResponse}

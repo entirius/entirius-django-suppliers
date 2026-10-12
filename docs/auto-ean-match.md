@@ -1,4 +1,7 @@
-# Auto EAN-match
+---
+title: Auto EAN Match
+description: Automatic supplier-product to PIM-product matching by EAN.
+---
 
 When a supplier feed delivers a `SupplierProduct` whose EAN matches an existing
 `RealProduct` in PIM, the push pipeline now attaches the SP to that existing
@@ -72,11 +75,11 @@ Non-strict (default) skips comparison for fields missing on either side. Pass re
 
 | Side | weight | width | height | deep |
 |---|---|---|---|---|
-| existing RP (Fortrade) | `0.150` | `20.00` | `10.00` | `5.00` |
-| SP (Kinghoff) | `0.155` (3.3%) | `20.50` (2.4%) | `10.10` (1.0%) | `5.05` (1.0%) |
+| existing RP (Acme) | `0.150` | `20.00` | `10.00` | `5.00` |
+| SP (Globex) | `0.155` (3.3%) | `20.50` (2.4%) | `10.10` (1.0%) | `5.05` (1.0%) |
 
-All four fields under 10% → **auto-link**. ProductSupplierLink for Kinghoff is
-created with `is_preferred=False`; existing Fortrade link stays preferred. Auto-preferred
+All four fields under 10% → **auto-link**. ProductSupplierLink for Globex is
+created with `is_preferred=False`; existing Acme link stays preferred. Auto-preferred
 re-evaluation belongs to the auto-preferred stage.
 
 ## Audit + events
@@ -119,8 +122,8 @@ suggestion based on the max pairwise weight diff:
 Found 1 EAN group(s) with multiple RealProduct:
 
   EAN 5906214804074 (2 RealProducts):
-    • FT-ce5b9e3089ff weight=0.150 width=20.00 height=10.00 deep=5.00 suppliers=fortrade ★
-    • KH-8a1beaee63fe weight=0.155 width=20.50 height=10.10 deep=5.05 suppliers=kinghoff
+    • FT-ce5b9e3089ff weight=0.150 width=20.00 height=10.00 deep=5.00 suppliers=acme ★
+    • GX-8a1beaee63fe weight=0.155 width=20.50 height=10.10 deep=5.05 suppliers=globex
     Suggestion: MERGE (max weight diff 3.3% within 10% tolerance)
 ```
 

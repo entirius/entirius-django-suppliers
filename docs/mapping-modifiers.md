@@ -1,4 +1,7 @@
-# Mapping value modifiers
+---
+title: Mapping Value Modifiers
+description: Transform feed values during mapping — modifiers and their contract.
+---
 
 `SupplierAttributeMapping.modifier` lets the operator declare a one-shot unit
 conversion or string normalisation that runs on the supplier value before it is

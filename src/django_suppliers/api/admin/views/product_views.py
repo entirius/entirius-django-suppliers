@@ -54,6 +54,7 @@ _TAGS = ["Supplier Products"]
 class SupplierProductViewSet(viewsets.ViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "suppliers.products"
     pagination_class = AdminPageNumberPagination
     serializer_class = None
 

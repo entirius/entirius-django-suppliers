@@ -57,6 +57,7 @@ _TAGS = ["Supplier Mappings"]
 class SupplierMappingProfileViewSet(viewsets.ViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "suppliers.sources"
     pagination_class = AdminPageNumberPagination
     serializer_class = None
 
@@ -152,6 +153,7 @@ class SupplierMappingProfileViewSet(viewsets.ViewSet):
 class SupplierAttributeMappingViewSet(viewsets.ViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "suppliers.sources"
     pagination_class = AdminPageNumberPagination
     serializer_class = None
 
@@ -248,6 +250,7 @@ class SupplierAttributeMappingViewSet(viewsets.ViewSet):
 class SupplierCategoryMappingViewSet(viewsets.ViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
+    access_area = "suppliers.sources"
     pagination_class = AdminPageNumberPagination
     serializer_class = None
 

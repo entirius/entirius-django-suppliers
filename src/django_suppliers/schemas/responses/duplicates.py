@@ -11,8 +11,8 @@ from pydantic import BaseModel, Field
 
 
 class DuplicatesSupplier(BaseModel):
-    idx: str = Field(description="Supplier.idx", examples=["fortrade"])
-    name: str = Field(description="Supplier display name", examples=["Fortrade Sp. z o.o."])
+    idx: str = Field(description="Supplier.idx", examples=["acme"])
+    name: str = Field(description="Supplier display name", examples=["Acme Sp. z o.o."])
     is_preferred: bool = Field(description="Operator-controlled preferred flag for this link.")
 
 

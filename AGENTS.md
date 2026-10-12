@@ -1,16 +1,13 @@
 # AGENTS.md
 
-Suppliers Django module for the Volkanos ecommerce platform — distribution `entirius-django-suppliers`,
-Django app `django_suppliers`. Manages supplier registry, feed-driven product import pipeline,
-review/approval workflow, one-time push to PIM, and cyclic delta refresh of cost / qty / physical
-attributes. Owns the cross-supplier story: auto EAN-match, preferred-supplier selection (auto + manual
-override + emergency switch), per-field audit log, and a CMS bridge that surfaces "supplier touched
-this PIM SKU" badges.
+`entirius-django-suppliers` (Django app `django_suppliers`) — suppliers module of Entirius. Manages supplier
+registry, feed-driven product import pipeline, review/approval workflow, one-time push to PIM, and cyclic delta
+refresh of cost / qty / physical attributes. Owns the cross-supplier story: auto EAN-match, preferred-supplier
+selection (auto + manual override + emergency switch), per-field audit log, and a CMS bridge that surfaces
+"supplier touched this PIM SKU" badges.
 
-**Tech:** Python >=3.11, Django >=5.0, DRF, Pydantic, drf-spectacular, lxml, requests,
-Celery 5+, entirius-django-utils (BaseModel), entirius-django-regional, entirius-django-pim.
-Optional: django_qms (soft dep, try/except), django_pricemanager (soft dep — consumes
-`cost_updated_signal` if installed).
+Hard deps: entirius-django-utils (BaseModel), entirius-django-regional, entirius-django-pim. Optional:
+django_qms (soft dep, try/except), django_pricemanager (soft dep — consumes `cost_updated_signal` if installed).
 
 ## Commands
 
@@ -29,22 +26,10 @@ Optional: django_qms (soft dep, try/except), django_pricemanager (soft dep — c
 - Git flow: `master` (production) + `develop` (integration); changes land via PR; semver tag on `master`.
 - Never rename the package / Django app_label / DB table prefix `django_suppliers` — it is a schema contract.
 - Migrations are part of the public contract — never edit an already released migration.
+- Access: areas live on the AppConfig (`access_areas`, `access_route_rules`), every admin view carries
+  `access_area`; a new admin route without one fails `tests/test_access_ownership.py`.
 - Default: do not commit — git is the user's call.
-
-## Signals
-
-Four signals; receivers MUST be idempotent (Celery retries, delta sync re-runs, force re-push can fire
-the same `(supplier_product, channel_idx)` pair repeatedly).
-
-| Signal | Sender | Args | Subscribers |
-|---|---|---|---|
-| `supplier_products_imported_signal` | `import_service.execute_feed` after a successful full sync / scraper-callback finalize | `feed`, `import_log` | `signals.handlers.on_supplier_products_imported` → auto-push pipeline (gated by `SupplierSettings.auto_push_enabled`, wrapped in `transaction.on_commit`) |
-| `cost_updated_signal` | `pricemanager_writer.write_cost` after a SupplierProduct cost lands for a target channel | `supplier_product`, `channel_idx`, `cost`, `currency` | `django_pricemanager.signals.supplier_cost.on_supplier_cost_updated`: writes preferred-supplier cost into `CurrentPrice` + `PriceHistory` with `source="supplier_cost"`. Suppliers stays unaware — soft coupling preserved. |
-| `supplier_product_pushed_signal` | `push_service` after status transitions to `pushed_pending_images` / `pushed` | `supplier_product`, `real_product_sku`, `channel_idx` | `signals.handlers.on_supplier_product_pushed` → image-dispatch task (separate `supplier_images` Celery queue) |
-| `preferred_switched_signal` | `preferred_strategy_service.apply_preferred_switch` after every `is_preferred` flip (auto / manual / emergency / cron) | `real_product_sku`, `from_supplier_idx`, `to_supplier_idx`, `reason`, `source` | None in tree yet. Reserved for downstream notifier / search reindex / cache invalidation. The cost subscriber reads `is_preferred` via ORM, not via this signal. |
-
-Killswitches: `signals.killswitch.suppress_supplier_signals()` (thread-local context) and
-`SupplierSettings.auto_push_enabled` (DB-level, cached 60s).
+- No AI attribution in commits or PR descriptions.
 
 ## Architecture
 
@@ -52,7 +37,7 @@ Killswitches: `signals.killswitch.suppress_supplier_signals()` (thread-local con
 src/django_suppliers/
 ├── apps.py, settings.py, urls.py, enums.py, admin.py
 │
-├── models/                                # 11 ORM models, one file per entity
+├── models/                                # ORM models, one file per entity
 │   ├── supplier.py                        #   Supplier + matching/preferred/race knobs
 │   ├── supplier_settings.py               #   Singleton (auto_push, delta_sync, retentions)
 │   ├── supplier_feed.py                   #   Per-supplier feed config
@@ -62,127 +47,59 @@ src/django_suppliers/
 │   ├── supplier_category_mapping.py       #   source_value → PIM Category idx
 │   ├── product_supplier_link.py           #   Multi-supplier per PIM SKU + manual_override
 │   ├── import_log.py                      #   Per-run summary + physical_* counters
-│   ├── integration_event.py               #   Per-event severity log (50+ event types)
-│   └── supplier_product_change_log.py     #   Per-field audit — 17 active source variants
+│   ├── integration_event.py               #   Per-event severity log
+│   └── supplier_product_change_log.py     #   Per-field audit
 │
 ├── schemas/
 │   ├── contract/                          #   RawProduct, PriceStockUpdate (connector boundary)
 │   ├── requests/                          #   Pydantic create/update/bulk schemas
 │   └── responses/                         #   Pydantic list/detail schemas
 │
-├── services/                              # 26 modules, framework-agnostic
+├── services/                              # framework-agnostic business logic
 ├── connectors/                            # base (Sync/Async), xml_feed, scraper
 ├── signals/                               # definitions, handlers, killswitch
 ├── tasks/                                 # feed_execution, push_pipeline, image_download,
 │                                          # scraper_callback, retention, preferred_strategy
 ├── api/admin/                             # views/, permissions, pagination, throttling, urls
-└── management/commands/                   # 7 commands (see § Commands)
+└── management/commands/                   # see docs/commands.md
 ```
 
 Layer rule: `API → Services → Models → DB`. ViewSets do not import models — every ORM access goes
 through services. Schemas never import Django models.
 
-## Data Flow
+Signals (`signals/definitions.py`): `supplier_products_imported_signal`, `cost_updated_signal`,
+`supplier_product_pushed_signal`, `preferred_switched_signal`. Receivers MUST be idempotent. Killswitches:
+`signals.killswitch.suppress_supplier_signals()` and `SupplierSettings.auto_push_enabled` (DB-level, cached 60s).
 
-### Two sync paths
-
-Every supplier feed runs in one of two modes; `import_service` picks by feed config and time-since-last-run.
-
-| Mode | Trigger | Side effects | Counter source |
-|---|---|---|---|
-| **Full sync** | Manual / first run / `--mode full` | Re-imports every row; stages new/changed `SupplierProduct` rows; never touches PIM directly | `ImportLog.imported_count` / `created_count` / `updated_count` |
-| **Delta sync** | Cron / `--mode delta` | Reads incremental changes; routes COST → `cost_updated_signal` + pricemanager, QTY → `qms_writer` (soft dep), physical → `_apply_physical_update_to_real_product` (preferred-only gate) | `ImportLog.physical_*_count`, `cost_updated` events, QMS info events |
-
-### Automatic propagation after first INIT push
-
-After `init_push_to_channel` puts a SupplierProduct in PIM, only these flow back automatically on each delta sync:
-
-| Channel | What updates | Gating |
-|---|---|---|
-| Cost → Pricemanager | `CurrentPrice` rewrite (`source=supplier_cost`) + `PriceHistory` row | Only when SP's link `is_preferred=True` AND `CurrentPrice.source != admin_edit` |
-| Stock → QMS Warehouse | Stock write via `qms_writer.write_stock` | Only when `_qms_available()` returns True (django_qms installed AND in INSTALLED_APPS) |
-| Physical → RealProduct | `weight` / `ean` / `width` / `height` / `deep` overwrite | Preferred-only by default. Opt-in via `Supplier.allow_physical_writes_from_non_preferred=True` |
-| Language resolution | 3-step hierarchy: `profile.import_language` → `supplier.default_language ∈ channel.languages` → `channel.default_language` | Fallback emits `language_fallback` event + audit row |
-| Mapping value transforms | Numeric (grams/kg, mm/cm, currency minor/major) + string (trim/lowercase/uppercase) per `SupplierAttributeMapping.modifier` | Failure soft — raw value used, `mapping_transform_failed` event emitted |
-| Auto EAN-match | New SP matches existing RealProduct by EAN within tolerance | Per-supplier opt-out via `Supplier.disable_ean_auto_link=True` |
-| Auto-preferred selection | Cron daily 03:00 UTC + inline after `_write_qms_cost_link` + inline emergency on stock=0 | Manual override sticky bit blocks all three triggers until `reset_to_auto` |
-
-Content (`name`, `description`, `short_description`, `category_idxs`, all non-physical features) is
-**curator-owned** post-INIT — only `force_repush` overwrites enrichment.
-
-### Force re-push semantics
-
-`force_repush_supplier_product` / `pim-sku/{sku}/force-repush/` is the operator escape hatch.
-It iterates every active `ProductSupplierLink` for the SKU, re-applies mappings as if pushing for the
-first time, and emits per-SP audit rows with `source=force_repush`. Partial failures are captured in
-`failed[]` (response key) — successes commit, failures roll back per-SP. Physical race detection still
-applies — non-preferred SPs cannot overwrite RealProduct physical fields via force_repush either.
-
-## API Surface
-
-URL prefix: `/api/suppliers/v2/admin/`. Auth: `JWTAuthentication` + `IsAdminUser` (custom subclass:
-`is_staff or is_superuser`). Throttling: `suppliers_change_log_bulk` 120/min on `pim-sku/has-changes/`.
-
-| Resource | Path |
+| Topic | Where |
 |---|---|
-| Suppliers | `suppliers/` (GET/POST), `suppliers/{idx}/` (GET/PATCH/DELETE), `suppliers/{idx}/delete-impact/`, `suppliers/{idx}/data-keys/` (flattened `SupplierProduct.data` keys + reserved tokens; cached 5 min, invalidated by `execute_feed_task`), `suppliers/{idx}/data-values/?source_field=X&limit=N`, `suppliers/{idx}/credentials/` (audited) |
-| Feeds | `suppliers/{idx}/feeds/...` (CRUD + `/trigger/` + `/test/`) |
-| Mapping profiles | `suppliers/{idx}/mapping-profiles/...` (CRUD + `/validate/` — returns `warnings: list[MappingWarning]` with structured codes; `mapping_id` present for category/attribute warnings) |
-| Attribute mappings | `mapping-profiles/{pk}/attribute-mappings/...` (CRUD — per-row `modifier`; see `docs/mapping-modifiers.md`) |
-| Category mappings | `mapping-profiles/{pk}/category-mappings/...` (CRUD) |
-| Products (cross-supplier) | `products/` (GET — denormalises `real_product_sku`, `supplier_idx`, `supplier_name`), `products/{pk}/` (GET/PATCH), bulk-approve/reject/requeue, per-pk approve/reject/skip/queue/push/force-repush, `products/{pk}/unlink-from-realproduct/` (POST — audits as `manual_unlink`) |
-| Product Supplier Links | `product-links/` (CRUD) + `/{pk}/set-preferred/` |
-| Import Logs | `import-logs/` (GET) + retrieve |
-| Events | `events/` (GET) + retrieve + `/{pk}/acknowledge/` |
-| PIM SKU bridge | `pim-sku/has-changes/?skus=A,B,...` (bulk badge lookup, max 100 SKUs, throttled), `pim-sku/{sku}/changes/` (timeline with `?since`, `?source`, `?unseen_only`), `pim-sku/{sku}/acknowledge/` (POST — idempotent), `pim-sku/{sku}/force-repush/` (POST — partial-success semantics) |
-| Preferred override | `pim-sku/{sku}/set-preferred-supplier/` (POST — sets `manual_override=True`), `pim-sku/{sku}/reset-preferred-to-auto/` (POST — clears override + inline auto-eval with cooldown bypass) |
-| RealProducts (cross-supplier) | `realproducts/merge-by-ean/` (POST — atomic winner/loser merge + audit `source=manual_merge`), `auto-matched/` (GET — distinct-SKU listing of auto-linked RealProducts), `duplicates/?tolerance_pct=10` (GET — per-EAN group with merge/review suggestion) |
-| Push | `push/` (BulkPushView) |
-| Settings | `settings/` (GET/PATCH singleton) |
-| Connectors | `connectors/` (entry_points discovery list) |
+| Overview, data flow (sync paths, propagation, force re-push), signals | `docs/index.md` |
+| Settings, runtime singleton, per-supplier knobs, Celery queues and beat, URL mounting | `docs/configuration.md` |
+| Admin API resources | `docs/api.md` |
+| Management commands | `docs/commands.md` |
+| Running the tests | `docs/testing.md` |
+| Entities, fields, constraints | `docs/data-model.md`, `docs/erd.md` |
+| ERD diagram groups (core-registry, feeds-and-import, mapping, monitoring) | `docs/erd-config.yaml` |
+| Review statuses and transitions; INIT push and force re-push | `docs/review-workflow.md`, `docs/push-workflow.md` |
+| Connector contract, RabbitMQ queues, entry points | `docs/connector-contract.md` |
+| Cost subscriber, preferred-supplier selection | `docs/price-handling.md`, `docs/preferred-strategy.md` |
+| `SupplierProductChangeLog` write paths, source variants, retention behaviour | `docs/audit-log.md` |
+| Auto-link path, tolerance checks, operator unlink API | `docs/auto-ean-match.md` |
+| Modifier choices, value_transformer dispatch, failure semantics | `docs/mapping-modifiers.md` |
+| IntegrationEvent taxonomy | `docs/monitoring.md` |
 
-OpenAPI: `extend_schema` everywhere, `SchemaGenerator().get_schema()` validates with 0 warnings, 0 errors.
 
-## Testing
+## Settings
 
-Tests run on postgres via `DATABASE_URL` (CI provides a postgres service; locally point it at any
-postgres 15+).
+Module settings (`SUPPLIER_*`, read in `src/django_suppliers/settings.py`), the `SupplierSettings` DB singleton and
+the per-supplier knobs are described in `docs/configuration.md`.
 
-```bash
-make install
-make test
-```
-
-INSTALLED_APPS in tests: `django_regional`, `django_pim`, `django_suppliers`.
-**NOT** `django_qms` / `django_pricemanager` (soft deps, out of scope).
-
-## Commands (management)
-
-| Command | Purpose |
-|---|---|
-| `execute_supplier_feed --feed-id N \| --supplier-idx X --feed-idx Y [--mode full\|delta] [--async]` | Trigger feed run from CLI |
-| `push_supplier_approved --supplier-idx X [--async]` | Push all approved SPs for supplier |
-| `prune_supplier_events` | Apply IntegrationEvent retention policy (Celery beat target) |
-| `prune_supplier_change_logs [--days N]` | Apply SupplierProductChangeLog retention (Celery beat target) |
-| `evaluate_preferred_suppliers [--sku SKU] [--bypass-safety]` | Synchronous auto-preferred batch. Equivalent to the celery beat task |
-| `find_duplicate_realproducts --by ean [--tolerance-pct N]` | Read-only EAN-collision triage — shared with the REST endpoint |
-| `supplier_status` | Health summary: settings + counts + top 5 logs + unack events |
-
-## Celery Queues (must be configured in service)
-
-| Queue | Tasks |
-|---|---|
-| `supplier_default` | `execute_feed_task`, `push_approved_for_supplier_task`, `prune_supplier_events_task`, `prune_supplier_change_logs_task`, `evaluate_preferred_suppliers_task` |
-| `supplier_images` | `download_supplier_images_task` (separate queue: slow IO) |
-| `supplier_results` | `process_scraper_results_task` (callback from scraper workers) |
-
-`evaluate_preferred_suppliers_task` is the auto-preferred batch evaluator — register on celery beat
-(default 03:00 UTC daily). Falls back to `python manage.py evaluate_preferred_suppliers` when beat is
-down or the operator wants synchronous output.
+Celery queues the service must configure: `supplier_default`, `supplier_images` (image downloads, slow IO),
+`supplier_results` (callback from scraper workers).
 
 ## Gotchas
 
-1. **Naming is plural** — repo and package are `django-suppliers` / `django_suppliers`.
+1. **Naming is plural** — distribution `entirius-django-suppliers`, package `django_suppliers`.
 2. **Pricemanager subscriber is live** — zero `import django_pricemanager` in suppliers code, but `cost_updated_signal` has a real subscriber when pricemanager is installed. Soft coupling preserved.
 3. **QMS soft dep** — `try/except (ImportError, RuntimeError)` via `_qms_available()` cached. `RuntimeError` catches the dev case where `django_qms` is on PYTHONPATH but not in INSTALLED_APPS. 4 fail paths emit info events; failure NEVER re-raised.
 4. **Scraper workers live outside this module** — they own scraper drivers + anti-ban infra. Contract via RabbitMQ queues `scraping` (push) and `supplier_results` (callback).
@@ -201,12 +118,3 @@ down or the operator wants synchronous output.
 17. **Preferred knobs partially wired** — `Supplier.preferred_strategy` / cooldown / hysteresis / `eval_frequency` are persisted and readable, but `SupplierUpdateRequest` schema and `_EDITABLE_FIELDS` whitelist do NOT include them; Pydantic v2 silently strips extra fields, so CMS "Saved" toast lies. Workaround: Django admin or shell until the schema is patched.
 18. **`pim-sku/{sku}/changes/` uses `changes:` key (not `results:`)** — inconsistent with the standard pagination shape; clients should read `response.changes`.
 19. **Decimal precision in tests** — `RealProduct.weight` has `decimal_places=2`, so `0.150` becomes `0.16` on save. Physical-race tests must use 2-decimal-place values.
-
-## Reference Docs
-
-| File | Content |
-|---|---|
-| `docs/erd-config.yaml` | ERD diagram groups (core-registry, feeds-and-import, mapping, monitoring) |
-| `docs/audit-log.md` | `SupplierProductChangeLog` write paths, 17 source variants, retention behaviour |
-| `docs/auto-ean-match.md` | Auto-link path, tolerance checks, operator unlink API |
-| `docs/mapping-modifiers.md` | Modifier choices, value_transformer dispatch, failure semantics |
