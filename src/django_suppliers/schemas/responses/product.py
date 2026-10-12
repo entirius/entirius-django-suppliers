@@ -16,12 +16,12 @@ class SupplierProductResponse(BaseModel):
     supplier_idx: str | None = Field(
         default=None,
         description="Supplier idx (resolved from FK; null only if supplier row deleted)",
-        examples=["kinghoff"],
+        examples=["acme"],
     )
     supplier_name: str | None = Field(
         default=None,
         description="Supplier display name (resolved from FK; null only if supplier row deleted)",
-        examples=["Kinghoff"],
+        examples=["Acme"],
     )
     supplier_role: str | None = Field(
         default=None,

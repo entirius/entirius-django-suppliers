@@ -145,7 +145,7 @@ The management command is the synchronous fallback when beat is down or you want
 ```json
 POST /api/suppliers/v2/admin/pim-sku/FT-ce5b9e3089ff/set-preferred-supplier/
 {
-  "supplier_idx": "fortrade",
+  "supplier_idx": "acme",
   "reason": "Strategic partner — promised exclusivity Q2."
 }
 ```

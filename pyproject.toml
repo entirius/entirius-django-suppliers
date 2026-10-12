@@ -1,7 +1,21 @@
 [project]
 name = "entirius-django-suppliers"
 version = "2.0.0"
-description = "Suppliers Django module for Volkanos"
+description = "Supplier integration module for Entirius: feed imports, product mapping, review workflow and push to the catalog"
+keywords = ["django", "suppliers", "procurement", "product-feed", "ecommerce", "entirius"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP",
+]
 authors = [{ name = "Entirius" }]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -37,7 +51,11 @@ xml_feed = "django_suppliers.connectors.xml_feed:XmlFeedConnector"
 scraper = "django_suppliers.connectors.scraper:ScraperConnector"
 
 [project.urls]
+Homepage = "https://docs.entirius.com/"
+Documentation = "https://github.com/entirius/entirius-django-suppliers/tree/develop/docs"
 Repository = "https://github.com/entirius/entirius-django-suppliers"
+Changelog = "https://github.com/entirius/entirius-django-suppliers/blob/develop/CHANGELOG.md"
+Issues = "https://github.com/entirius/entirius-django-suppliers/issues"
 
 [build-system]
 requires = ["hatchling"]
